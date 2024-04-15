@@ -1,0 +1,131 @@
+// datasource db defines the database connection settings.
+// It is configured for PostgreSQL and uses an environment variable for the connection URL.
+// The 'extensions' feature enables the use of PostgreSQL-specific data types.
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+}
+
+// generator db configures Prisma Client settings.
+// It is set up to use Prisma Client Python with asyncio interface and specific features.
+generator db {
+  provider                    = "prisma-client-py"
+  interface                   = "asyncio"
+  recursive_type_depth        = 5
+  previewFeatures             = ["postgresqlExtensions"]
+  enable_experimental_decimal =true
+}
+
+model User {
+  id            String         @id @default(dbgenerated("gen_random_uuid()"))
+  email         String         @unique
+  password      String
+  role          UserRole
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  ApiKeys       ApiKey[]
+  Requests      Request[]
+  Subscriptions Subscription[]
+  Integration   Integration[]
+}
+
+model ApiKey {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  key       String   @unique
+  createdAt DateTime @default(now())
+  UserId    String
+  User      User     @relation(fields: [UserId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id        String           @id @default(dbgenerated("gen_random_uuid()"))
+  userId    String
+  tier      SubscriptionTier
+  startDate DateTime         @default(now())
+  endDate   DateTime
+  User      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Request {
+  id        String        @id @default(dbgenerated("gen_random_uuid()"))
+  createdAt DateTime      @default(now())
+  endpoint  String
+  userId    String
+  status    RequestStatus
+  response  String?
+  User      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Analytics Analytics[]
+}
+
+model Module {
+  id          String    @id @default(dbgenerated("gen_random_uuid()"))
+  name        String
+  description String
+  Features    Feature[]
+}
+
+model Feature {
+  id       String @id @default(dbgenerated("gen_random_uuid()"))
+  name     String
+  moduleId String
+  Module   Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+}
+
+model Analytics {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  requestId String
+  datetime  DateTime @default(now())
+  metrics   Json
+  Request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}
+
+model ExternalService {
+  id          String        @id @default(dbgenerated("gen_random_uuid()"))
+  name        String
+  description String
+  url         String
+  Integration Integration[]
+}
+
+model Integration {
+  id                String          @id @default(dbgenerated("gen_random_uuid()"))
+  userId            String
+  externalServiceId String
+  credentials       Json
+  createdAt         DateTime        @default(now())
+  User              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ExternalService   ExternalService @relation(fields: [externalServiceId], references: [id], onDelete: Cascade)
+}
+
+model Monitoring {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  metric    String
+  value     String
+  createdAt DateTime @default(now())
+}
+
+model Localization {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  locale    String
+  content   Json
+  createdAt DateTime @default(now())
+}
+
+enum UserRole {
+  Admin
+  Developer
+  User
+}
+
+enum SubscriptionTier {
+  Free
+  Basic
+  Premium
+}
+
+enum RequestStatus {
+  Success
+  Failure
+  Error
+}
+
